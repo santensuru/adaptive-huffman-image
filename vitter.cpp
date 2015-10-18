@@ -4,6 +4,10 @@
  * Author: Djuned Fernando Djusdek
  *         5112.100.071
  *         Informatics - ITS
+ *
+ * Version 1.0
+ *
+ * This code only use for grayscale image from 8-bit *.bmp format file
  */
 
 #include <iostream>
@@ -13,8 +17,8 @@
 #include <fstream>
 #include <queue>
 #include <ctime>
-#include "highgui.h"
-#include "cv.h"
+#include <highgui.h>
+#include <cv.h>
 
 namespace vitter {
 	
@@ -190,7 +194,7 @@ namespace vitter {
 			find_external_symbol(&(*tree)->left, symbol, &*position);
 		}
 		
-		if ((*tree)->symbol == symbol) {
+		if ((*tree)->symbol == symbol && (*tree)->left == NULL && (*tree)->right == NULL && (*tree)->weight != 0) {
 			*position = *tree;
 		}
 		
@@ -302,7 +306,7 @@ namespace vitter {
 			queue.clear();
 			
 			(*dictionary).push_back(symbol);
-	
+			
 		}
 		
 		// increment weight
@@ -518,13 +522,6 @@ namespace vitter {
 		return;
 	}
 	
-	// NOT USE
-	void write_to_file_instansly(std::ofstream *file, unsigned char symbol) {
-		*file << symbol;
-		
-		return;
-	}
-	
 	void decode(node **tree, std::vector<unsigned char> *dictionary, std::queue<char> *code_read, std::ifstream *file, IplImage **out_file, node **nyt, bool *oke, short offset, unsigned long *position) {
 		// 4 byte
 		while ((*code_read).size() < 32 && *oke) {
@@ -536,7 +533,6 @@ namespace vitter {
 		if (temp == NULL) {
 			unsigned char symbol[1];
 			get_char_from_code(&*code_read, symbol);
-//			write_to_file_instansly(&*out_file, symbol[0]);
 			
 			(*out_file)->imageData[(*position)++] = (char) symbol[0];
 			(*out_file)->imageData[(*position)++] = (char) symbol[0];
@@ -544,7 +540,6 @@ namespace vitter {
 			
 			// call update procedure
 			update(&*tree, symbol[0], &*dictionary, &*nyt);
-			temp = *tree;
 			
 		} else {
 			while (temp->left != NULL && temp->right != NULL && (*code_read).size() > offset) {
@@ -572,7 +567,6 @@ namespace vitter {
 			if (temp->weight == 0) {
 				unsigned char symbol[1];
 				get_char_from_code(&*code_read, symbol);
-//				write_to_file_instansly(&*out_file, symbol[0]);
 				
 				(*out_file)->imageData[(*position)++] = (char) symbol[0];
 				(*out_file)->imageData[(*position)++] = (char) symbol[0];
@@ -580,10 +574,8 @@ namespace vitter {
 				
 				// call update procedure
 				update(&*tree, symbol[0], &*dictionary, &*nyt);
-				temp = *tree;
 				
 			} else {
-//				write_to_file_instansly(&*out_file, temp->symbol);
 				
 				(*out_file)->imageData[(*position)++] = (char) temp->symbol;
 				(*out_file)->imageData[(*position)++] = (char) temp->symbol;
@@ -591,26 +583,11 @@ namespace vitter {
 				
 				// call update procedure
 				update(&*tree, temp->symbol, &*dictionary, &*nyt);
-				temp = *tree;
 				
 			}
 		}
 		
 		return;
-	}
-	
-	// NOT USE
-	bool read_from_file_instansly(std::ifstream *file, unsigned char *symbol) {
-		char temp;
-		if ((*file).get(temp)) {
-			symbol[0] = temp;
-			
-			return true;
-			
-		} else {
-			return false;
-			
-		}
 	}
 	
 	/**
@@ -628,12 +605,6 @@ namespace vitter {
 		unsigned short offset = 0;
 		
 		// initiate file with width, height & offset
-//		for (int i=24; i>=0; i-=8) {
-//			*out << (unsigned char) ( (*in)->width >> i & 0xFF );
-//		}
-//		for (int i=24; i>=0; i-=8) {
-//			*out << (unsigned char) ( (*in)->height >> i & 0xFF );
-//		}
 		(*out).write((char*)&(*in)->width, 4);
 		(*out).write((char*)&(*in)->height, 4);
 		*out << (unsigned char) 0x00;
@@ -697,10 +668,10 @@ namespace vitter {
 		
 		(*out)->width = width;
 		(*out)->height = height;
-				
+		
 		do {
 			decode(&root, &dictionary, &code_read, &*in, &*out, &nyt, &oke, offset, &position);
-		} while (code_read.size() > offset || oke);
+		} while ((code_read.size() > offset || oke));
 		
 		dictionary.clear();
 		delete_tree(&root);
