@@ -13,5 +13,5 @@ vitter.exe -c | -d <filename>
 -c for compress
 ``
 ``
--d for decompress , just show restore image, not created file
+-d for decompress , just show restore image, not create file
 ``
