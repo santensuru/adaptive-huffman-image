@@ -241,16 +241,12 @@ namespace vitter {
 		return p.first < q.first;
 	}
 	
-	void update(node **tree, unsigned char symbol, std::vector<unsigned char> *dictionary, node **nyt) {
-		// search in dictionary
-		std::vector<unsigned char>::iterator it;
-		it = std::search_n ((*dictionary).begin(), (*dictionary).end(), 1, symbol);
-		
+	void update(node **tree, unsigned char symbol, unsigned char *dictionary, node **nyt) {
 		node *temp;
 		
 		std::vector<my_pair> queue;
 		
-		if (it != (*dictionary).end()) {
+		if (dictionary[(int) symbol] == 0x01) {
 			find_external_symbol(&*tree, symbol, &temp);
 			
 			node *inner_temp = NULL;
@@ -305,7 +301,7 @@ namespace vitter {
 			
 			queue.clear();
 			
-			(*dictionary).push_back(symbol);
+			dictionary[(int) symbol] = 0x01;
 			
 		}
 		
@@ -440,13 +436,9 @@ namespace vitter {
 		return;
 	}
 	
-	void encode(node **tree, unsigned char symbol, std::vector<unsigned char> *dictionary, std::queue<char> *code_write, std::ofstream *file, node **nyt) {
-		// search in dictionary
-		std::vector<unsigned char>::iterator it;
-		it = std::search_n ((*dictionary).begin(), (*dictionary).end(), 1, symbol);
-		
+	void encode(node **tree, unsigned char symbol, unsigned char *dictionary, std::queue<char> *code_write, std::ofstream *file, node **nyt) {
 		// symbol exist
-		if (it != (*dictionary).end()) {
+		if (dictionary[(int) symbol] == 0x01) {
 			char do_code[1];
 			do_code[0] = '\0';
 			
@@ -464,7 +456,7 @@ namespace vitter {
 		}
 		
 		// call update procedure
-		update(&*tree, symbol, &*dictionary, &*nyt);
+		update(&*tree, symbol, dictionary, &*nyt);
 		
 		// write to file
 		while ((*code_write).size() >= 8) {
@@ -522,7 +514,7 @@ namespace vitter {
 		return;
 	}
 	
-	void decode(node **tree, std::vector<unsigned char> *dictionary, std::queue<char> *code_read, std::ifstream *file, IplImage **out_file, node **nyt, bool *oke, short offset, unsigned long *position) {
+	void decode(node **tree, unsigned char *dictionary, std::queue<char> *code_read, std::ifstream *file, IplImage **out_file, node **nyt, bool *oke, short offset, unsigned long *position) {
 		// 4 byte
 		while ((*code_read).size() < 32 && *oke) {
 			*oke = read_from_file(&*file, &*code_read);
@@ -539,7 +531,7 @@ namespace vitter {
 			(*out_file)->imageData[(*position)++] = (char) symbol[0];
 			
 			// call update procedure
-			update(&*tree, symbol[0], &*dictionary, &*nyt);
+			update(&*tree, symbol[0], dictionary, &*nyt);
 			
 		} else {
 			while (temp->left != NULL && temp->right != NULL && (*code_read).size() > offset) {
@@ -573,7 +565,7 @@ namespace vitter {
 				(*out_file)->imageData[(*position)++] = (char) symbol[0];
 				
 				// call update procedure
-				update(&*tree, symbol[0], &*dictionary, &*nyt);
+				update(&*tree, symbol[0], dictionary, &*nyt);
 				
 			} else {
 				
@@ -582,7 +574,7 @@ namespace vitter {
 				(*out_file)->imageData[(*position)++] = (char) temp->symbol;
 				
 				// call update procedure
-				update(&*tree, temp->symbol, &*dictionary, &*nyt);
+				update(&*tree, temp->symbol, dictionary, &*nyt);
 				
 			}
 		}
@@ -598,7 +590,9 @@ namespace vitter {
 		node *root = NULL;
 		node *nyt = NULL;
 		
-		std::vector<unsigned char> dictionary;
+		unsigned char dictionary[SYMBOL];
+		memset(dictionary, 0, SYMBOL);
+		
 		std::queue<char> code_write;
 		unsigned char symbol[1];
 		
@@ -611,7 +605,7 @@ namespace vitter {
 		
 		for (int j=0; j<(*in)->height; j++) {
     		for (int i=0; i<(*in)->width*3; i+=3) {
-    			encode(&root, (unsigned char) (*in)->imageData[(*in)->width*3 * j + i], &dictionary, &code_write, &*out, &nyt);
+    			encode(&root, (unsigned char) (*in)->imageData[(*in)->width*3 * j + i], dictionary, &code_write, &*out, &nyt);
 	    	}
 	    }
 		
@@ -633,7 +627,6 @@ namespace vitter {
 			(*out).write(write_offset, 1);
 		}
 		
-		dictionary.clear();
 		delete_tree(&root);
 		
 		return;
@@ -647,7 +640,9 @@ namespace vitter {
 		node *root = NULL;
 		node *nyt = NULL;
 		
-		std::vector<unsigned char> dictionary;
+		unsigned char dictionary[SYMBOL];
+		memset(dictionary, 0, SYMBOL);
+		
 		std::queue<char> code_read;
 		
 		bool oke = true;
@@ -670,10 +665,9 @@ namespace vitter {
 		(*out)->height = height;
 		
 		do {
-			decode(&root, &dictionary, &code_read, &*in, &*out, &nyt, &oke, offset, &position);
+			decode(&root, dictionary, &code_read, &*in, &*out, &nyt, &oke, offset, &position);
 		} while ((code_read.size() > offset || oke));
 		
-		dictionary.clear();
 		delete_tree(&root);
 		
 		return;
